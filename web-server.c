@@ -32,11 +32,11 @@ int main(int argc, char const *argv[])
         exit(EXIT_FAILURE);
 
     }    
+    printf("Waiting For connetion!\n");
 
-    if(connect(socketfd, (struct sockaddr *)&server_addr, sizeof(server_addr)) != 0){
-        printf("Connection Went wrong!\n");
-    };
-
+    accept(socketfd,(struct sockaddr * )&server_addr, 0 );
+    
+    printf("Conneted!\n");
 
     close(socketfd);
     return 0;
