@@ -1,61 +1,94 @@
+#include <errno.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
 #include <string.h>
+#include <sys/socket.h>
 #include <unistd.h>
-#include <sys/types.h>
 
-#define PORT 1337
-
+int main() {
 
 
-int main(int argc, char const *argv[])
-{
-    //Declaration Of stuff we going to use later
-    int socketfd;
-    struct sockaddr_in server_addr ;
-    char * OK_REQUEST ="HTTP/1.1 200 OK\r\n\r\n";
-    //Creating a Socket
-    socketfd=socket(AF_INET,SOCK_STREAM,0 ); 
-    //Defining The Struct of the socket to bind it 
-    server_addr.sin_port=htons(PORT);
-    server_addr.sin_family=AF_INET;
-    server_addr.sin_addr.s_addr=   INADDR_ANY;
+  setbuf(stdout, NULL);
 
-    //Binding and checking if the Socket is binding without any Problems
+  printf("Logs from your program will appear here!\n");
 
-    if(bind(socketfd,(const struct  sockaddr *) &server_addr, sizeof(server_addr)) < 0){
-        printf("Binding Went Wrong!\n");
-        exit(EXIT_FAILURE);
-    } 
-    //Listening on the Port with the backlog being 3
-    if(listen(socketfd, 3) < 0){
-        printf("Listening Went Wrong!\n");
-        exit(EXIT_FAILURE);
 
-    }    
-    //Waiting For coonections
+  int server_fd, client_addr_len;
 
-    printf("Waiting For connetion!\n");
+  struct sockaddr_in client_addr;
 
-    //Accepting the Connection and creating a  file descriptor
-    int server_addr_len= sizeof(socketfd);
-    
-    int fd = accept(socketfd,(struct sockaddr * )&server_addr,&server_addr_len);
+  server_fd = socket(AF_INET, SOCK_STREAM, 0);
 
-    //Replying the request
+  if (server_fd == -1) {
 
-    int bytes_send = send(fd,OK_REQUEST,strlen(OK_REQUEST), 0);
-    printf("Conneted!\n");
+    printf("Socket creation failed: %s...\n", strerror(errno));
 
-    //Clossing and checking if something went Wrong
+    return 1;
 
-    if(close(socketfd)  == -1 ){
-        printf("Closing the Socket went Wrong!\n");
-        exit(EXIT_FAILURE);
-    }
+  }
 
-    return 0;
+  // Since   I well be restarting the  program quite often, setting REUSE_PORT
+
+  // ensures that we don't run into 'Address already in use' errors
+
+  int reuse = 1;
+
+  if (setsockopt(server_fd, SOL_SOCKET, SO_REUSEPORT, &reuse, sizeof(reuse)) <
+
+      0) {
+
+    printf("SO_REUSEPORT failed: %s \n", strerror(errno));
+
+    return 1;
+
+  }
+  //defining structure for binding socket with adress
+  struct sockaddr_in serv_addr = {
+
+      .sin_family = AF_INET,
+
+      .sin_port = htons(4221),
+
+      .sin_addr = {htonl(INADDR_ANY)},
+
+  };
+
+  if (bind(server_fd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) != 0) {
+
+    printf("Bind failed: %s \n", strerror(errno));
+
+    return 1;
+
+  }
+
+  int connection_backlog = 5;
+
+  if (listen(server_fd, connection_backlog) != 0) {
+
+    printf("Listen failed: %s \n", strerror(errno));
+
+    return 1;
+
+  }
+
+  printf("Waiting for a client to connect...\n");
+
+  client_addr_len = sizeof(client_addr);
+
+  accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len);
+
+  int fd = accept(server_fd, (struct sockaddr *)&client_addr, &client_addr_len);
+
+  printf("Client connected\n");
+
+  char *reply = "HTTP/1.1  200 OK\r\n\r\n";
+
+  int bytes_sent = send(fd, reply, strlen(reply), 0);
+
+  close(server_fd);
+
+  return 0;
 
 }
